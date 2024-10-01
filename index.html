@@ -19,41 +19,44 @@
       background-color: #f4f4f4;
       font-family: Arial, sans-serif;
     }
-    header, footer {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
     header {
       height: 300px;
+      width: 300px; /* Set header width to 300px */
+      position: relative;
       display: flex;
       justify-content: center;
       align-items: center;
-    }
-    footer {
-      position: relative;
-      height: 300px;
-      overflow: hidden;
+      overflow: hidden; /* Ensure content stays within the frame */
+      border: 2px solid #333; /* Optional: Add border for visual clarity */
     }
     #video {
-      width: 300px;
-      height: 300px;
-      object-fit: cover;
-      border: 2px solid #333;
+      position: absolute; /* Position video absolutely */
+      top: 0; /* Align top */
+      left: 0; /* Align left */
+      width: 300px; /* Set fixed width */
+      height: 300px; /* Set fixed height */
+      object-fit: cover; /* Cover the entire area */
     }
     #canvas {
       position: absolute;
       top: 0;
       left: 0;
     }
-    #image {
+    footer {
       position: relative;
-      width: 300px;
       height: 300px;
+      width: 100%;
+      overflow: hidden;
+    }
+    #smokeImage {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 300px; /* Set smoke image to match video */
+      height: 300px; /* Set smoke image to match video */
       background: url('main.png') no-repeat center center;
-      background-size: contain;
-      transition: opacity 0.5s ease;
+      background-size: cover; /* Ensure it covers the area */
+      transition: opacity 0.5s ease; /* Smooth transition for opacity change */
       opacity: 1; /* Initial smoke fully visible */
     }
   </style>
@@ -62,16 +65,17 @@
   <header>
     <video id="video" autoplay playsinline></video>
     <canvas id="canvas" width="300" height="300"></canvas>
+    <div id="smokeImage"></div> <!-- Smoke image initially visible -->
   </header>
 
   <footer>
-    <div id="image"></div> <!-- Smoke covered image -->
+    <div id="image"></div> <!-- Optional additional image -->
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/handtrackjs/dist/handtrack.min.js"></script>
   <script>
     const video = document.getElementById("video");
-    const smokeImage = document.getElementById("image");
+    const smokeImage = document.getElementById("smokeImage");
     const canvas = document.getElementById("canvas");
     const context = canvas.getContext("2d");
 
@@ -129,7 +133,7 @@
       const distance = Math.sqrt(Math.pow(handCenterX - centerX, 2) + Math.pow(handCenterY - centerY, 2));
 
       // Adjust opacity based on distance (closer hand means less opacity)
-      opacityLevel = Math.max(0, Math.min(1, distance / 200)); // Distance of 200 means full smoke
+      opacityLevel = Math.max(0, Math.min(1, 1 - (distance / 200))); // Inverted: closer hand fades smoke
 
       // Apply the updated opacity to the smoke image
       smokeImage.style.opacity = opacityLevel;
