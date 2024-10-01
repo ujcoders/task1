@@ -1,137 +1,135 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Scratch Card Effect with Hand Detection</title>
-  <style>
-    body, html {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background-color: #000;
-    }
-
-    #image-container {
-      position: relative;
-    }
-
-    #smoke {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(255, 255, 255, 0.8);
-      animation: fadeSmoke 0.5s ease-in-out;
-    }
-
-    #image {
-      width: 100vw;
-      height: 100vh;
-      object-fit: cover;
-    }
-
-    @keyframes fadeSmoke {
-      from { opacity: 1; }
-      to { opacity: 0; }
-    }
-
-    #camera-stream {
-      display: none;
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hand Detection with OpenCV</title>
+    <script src="https://docs.opencv.org/4.x/opencv.js" async></script>
+    <style>
+        #camera-stream {
+            display: none; /* Hide the video stream element */
+        }
+        #output-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        #smoke {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: url('main.png') no-repeat center center; /* Add your smoke image path */
+            background-size: cover;
+            opacity: 0.8; /* Initial opacity of smoke */
+            transition: opacity 0.5s;
+        }
+    </style>
 </head>
 <body>
-
-  <div id="image-container">
-    <img id="image" src="main.png" alt="Background Image">
-    <div id="smoke"></div>
     <video id="camera-stream" autoplay></video>
-  </div>
+    <canvas id="output-canvas"></canvas>
+    <div id="smoke"></div>
 
-  <script src="https://docs.opencv.org/4.x/opencv.js" async></script>
-  <script>
-    // Start the camera and hand detection after 5 seconds
-    setTimeout(() => {
-      startCamera();
-    }, 5000);
-
-    function startCamera() {
-      const video = document.getElementById('camera-stream');
-      const smoke = document.getElementById('smoke');
-
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => {
-          video.srcObject = stream;
-          video.play();
-          video.style.display = 'block';
-          detectHandMovement(video, smoke);
-        })
-        .catch(error => console.error('Camera not accessible:', error));
-    }
-
-    function detectHandMovement(video, smoke) {
-      const cap = new cv.VideoCapture(video);
-
-      // Hand detection logic using OpenCV.js will go here
-      const fps = 10;
-      setInterval(() => {
-        const frame = new cv.Mat(video.height, video.width, cv.CV_8UC4);
-        cap.read(frame);
-
-        // Convert frame to grayscale
-        cv.cvtColor(frame, frame, cv.COLOR_RGBA2GRAY);
-
-        // Thresholding to extract hand
-        cv.threshold(frame, frame, 100, 255, cv.THRESH_BINARY);
-
-        // Find contours
-        const contours = new cv.MatVector();
-        const hierarchy = new cv.Mat();
-        cv.findContours(frame, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-
-        if (contours.size() > 0) {
-          const handContour = contours.get(0);
-          
-          // Convex hull calculation
-          const hull = new cv.Mat();
-          cv.convexHull(handContour, hull, false, true);
-
-          // Convexity defects (used for detecting fingers)
-          const defects = new cv.Mat();
-          cv.convexityDefects(handContour, hull, defects);
-
-          // Simple left or right hand movement detection logic (for demo purposes)
-          if (defects.size().height > 0) {
-            const startPoint = defects.intPtr(0, 0)[0];
-            const endPoint = defects.intPtr(0, 1)[0];
-
-            if (startPoint > endPoint) {
-              // Movement to the left
-              smoke.style.opacity = parseFloat(smoke.style.opacity) - 0.05;
-            } else {
-              // Movement to the right
-              smoke.style.opacity = parseFloat(smoke.style.opacity) - 0.05;
-            }
-          }
+    <script>
+        // Start the camera and detect hand movement
+        function startCamera() {
+            const video = document.getElementById('camera-stream');
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    video.srcObject = stream;
+                    video.play();
+                    video.style.display = 'block';
+                    detectHandMovement(video);
+                })
+                .catch(error => console.error('Camera not accessible:', error));
         }
 
-        frame.delete();
-        contours.delete();
-        hierarchy.delete();
-      }, 1000 / fps);
-    }
-  </script>
+        // Detect hand movement and draw blue lines on fingertips
+        function detectHandMovement(video) {
+            const canvas = document.getElementById('output-canvas');
+            const ctx = canvas.getContext('2d');
+            const cap = new cv.VideoCapture(video);
+            const smoke = document.getElementById('smoke');
 
+            // Initialize frame capturing and processing
+            const fps = 10;
+            setInterval(() => {
+                const frame = new cv.Mat(video.height, video.width, cv.CV_8UC4);
+                const gray = new cv.Mat();
+                cap.read(frame);
+                cv.cvtColor(frame, gray, cv.COLOR_RGBA2GRAY);
+                cv.GaussianBlur(gray, gray, new cv.Size(5, 5), 0);
+
+                // Apply adaptive thresholding to detect the hand
+                const thresh = new cv.Mat();
+                cv.adaptiveThreshold(gray, thresh, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 11, 2);
+
+                // Find contours
+                const contours = new cv.MatVector();
+                const hierarchy = new cv.Mat();
+                cv.findContours(thresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+                if (contours.size() > 0) {
+                    const handContour = contours.get(0);
+                    const hull = new cv.Mat();
+                    cv.convexHull(handContour, hull, false, true);
+                    const defects = new cv.Mat();
+                    cv.convexityDefects(handContour, hull, defects);
+
+                    // Draw blue lines on fingertips and check movement direction
+                    const numDefects = defects.rows;
+                    let leftMost = Number.MAX_VALUE;
+                    let rightMost = Number.MIN_VALUE;
+
+                    for (let i = 0; i < numDefects; i++) {
+                        const start = defects.data32S[i * 4];
+                        const end = defects.data32S[i * 4 + 1];
+                        const far = defects.data32S[i * 4 + 2];
+
+                        const startPoint = handContour.data32S.slice(start * 2, start * 2 + 2);
+                        const endPoint = handContour.data32S.slice(end * 2, end * 2 + 2);
+                        const farPoint = handContour.data32S.slice(far * 2, far * 2 + 2);
+
+                        // Draw blue lines
+                        cv.line(frame, new cv.Point(startPoint[0], startPoint[1]), new cv.Point(endPoint[0], endPoint[1]), new cv.Scalar(255, 0, 0, 255), 2);
+                        cv.circle(frame, new cv.Point(farPoint[0], farPoint[1]), 5, new cv.Scalar(0, 255, 0, 255), -1);
+
+                        // Update left and right points
+                        leftMost = Math.min(leftMost, farPoint[0]);
+                        rightMost = Math.max(rightMost, farPoint[0]);
+                    }
+
+                    // Check for hand movement and adjust smoke opacity
+                    const centerX = (leftMost + rightMost) / 2;
+                    const frameCenterX = video.width / 2;
+
+                    if (centerX < frameCenterX - 30) {
+                        // Hand moved left
+                        smoke.style.opacity = Math.max(0, parseFloat(smoke.style.opacity) - 0.05);
+                    } else if (centerX > frameCenterX + 30) {
+                        // Hand moved right
+                        smoke.style.opacity = Math.max(0, parseFloat(smoke.style.opacity) - 0.05);
+                    }
+                }
+
+                // Show the processed frame on the canvas
+                cv.imshow('output-canvas', frame);
+
+                // Clean up
+                frame.delete();
+                gray.delete();
+                thresh.delete();
+                contours.delete();
+                hierarchy.delete();
+                hull.delete();
+                defects.delete();
+            }, 1000 / fps);
+        }
+
+        // Start the camera when the page loads
+        window.onload = () => {
+            startCamera();
+        };
+    </script>
 </body>
 </html>
