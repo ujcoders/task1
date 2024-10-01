@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hand Detection with Smoke Removal</title>
+    <title>Hand Detection with Hull Defects</title>
     <script src="https://docs.opencv.org/4.x/opencv.js" async></script>
     <style>
         body {
@@ -14,11 +14,13 @@
             height: 100vh;
             background-color: #333;
             color: white;
-            position: relative;
-            overflow: hidden;
         }
-        #camera-stream {
-            display: none; /* Hide the video stream element */
+        video {
+            width: 100%;
+            height: auto;
+            border: 3px solid #fff;
+            border-radius: 8px;
+            z-index: 0;
         }
         #output-canvas {
             position: absolute;
@@ -26,40 +28,13 @@
             left: 0;
             z-index: 2;
         }
-        #smoke {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background: url('main.png') no-repeat center center; /* Add your smoke image path */
-            background-size: cover;
-            opacity: 0.8; /* Initial opacity of smoke */
-            transition: opacity 0.5s;
-            z-index: 1;
-        }
-        #video-container {
-            position: relative;
-            width: 100%;
-            max-width: 800px; /* Set a max width for the video */
-            overflow: hidden;
-        }
-        video {
-            width: 100%;
-            height: auto;
-            border: 3px solid #fff; /* Attractive border */
-            border-radius: 8px; /* Rounded corners */
-            z-index: 0;
-        }
     </style>
 </head>
 <body>
-    <div id="video-container">
-        <video id="camera-stream" autoplay playsinline></video>
-        <canvas id="output-canvas"></canvas>
-        <div id="smoke"></div>
-    </div>
+    <video id="camera-stream" autoplay playsinline></video>
+    <canvas id="output-canvas"></canvas>
 
     <script>
-        // Start the camera and detect hand movement
         function startCamera() {
             const video = document.getElementById('camera-stream');
             navigator.mediaDevices.getUserMedia({ video: true })
@@ -72,21 +47,43 @@
                 .catch(error => console.error('Camera not accessible:', error));
         }
 
-        // Detect hand movement and draw blue lines on fingertips
+        function getHullDefectVertices(handContour, hullIndices) {
+            const defects = handContour.convexityDefects(hullIndices);
+            const handContourPoints = handContour.getPoints();
+
+            // get neighbor defect points of each hull point
+            const hullPointDefectNeighbors = new Map(hullIndices.map(idx => [idx, []]));
+            defects.forEach((defect) => {
+                const startPointIdx = defect.at(0);
+                const endPointIdx = defect.at(1);
+                const defectPointIdx = defect.at(2);
+                hullPointDefectNeighbors.get(startPointIdx).push(defectPointIdx);
+                hullPointDefectNeighbors.get(endPointIdx).push(defectPointIdx);
+            });
+
+            return Array.from(hullPointDefectNeighbors.keys())
+                // only consider hull points that have 2 neighbor defects
+                .filter(hullIndex => hullPointDefectNeighbors.get(hullIndex).length > 1)
+                // return vertex points
+                .map((hullIndex) => {
+                    const defectNeighborsIdx = hullPointDefectNeighbors.get(hullIndex);
+                    return ({
+                        pt: handContourPoints[hullIndex],
+                        d1: handContourPoints[defectNeighborsIdx[0]],
+                        d2: handContourPoints[defectNeighborsIdx[1]]
+                    });
+                });
+        }
+
         function detectHandMovement(video) {
             const canvas = document.getElementById('output-canvas');
             const ctx = canvas.getContext('2d');
-            const smoke = document.getElementById('smoke');
-
-            // Set canvas dimensions
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
 
-            // Initialize frame capturing and processing
             const fps = 10;
             setInterval(() => {
                 const frame = new cv.Mat(video.height, video.width, cv.CV_8UC4);
-                const gray = new cv.Mat();
                 const hsv = new cv.Mat();
                 const mask = new cv.Mat();
                 const contours = new cv.MatVector();
@@ -94,66 +91,41 @@
                 const cap = new cv.VideoCapture(video);
                 cap.read(frame);
 
-                // Convert to grayscale and blur
-                cv.cvtColor(frame, gray, cv.COLOR_RGBA2GRAY);
-                cv.GaussianBlur(gray, gray, new cv.Size(5, 5), 0);
-
                 // Convert to HSV
                 cv.cvtColor(frame, hsv, cv.COLOR_RGBA2HSV);
 
-                // Adjust lower and upper bounds for skin color detection
-                const lowerBound = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [0, 40, 30, 0]);  // Adjusted lower bound
-                const upperBound = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [20, 255, 255, 0]); // Adjusted upper bound
-                
+                // Define skin color range in HSV
+                const lowerBound = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [0, 40, 30, 0]);  
+                const upperBound = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [20, 255, 255, 0]); 
+
                 // Create a mask
                 cv.inRange(hsv, lowerBound, upperBound, mask);
 
                 // Find contours
                 cv.findContours(mask, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-                console.log('Number of contours detected:', contours.size());  // Check number of contours
 
                 if (contours.size() > 0) {
                     const handContour = contours.get(0);
                     const hull = new cv.Mat();
                     cv.convexHull(handContour, hull, false, true);
-                    const defects = new cv.Mat();
-                    cv.convexityDefects(handContour, hull, defects);
 
-                    // Draw contours and hull
+                    // Get hull defect vertices
+                    const hullIndices = [];
+                    for (let i = 0; i < hull.rows; i++) {
+                        hullIndices.push(hull.data32S[i]);
+                    }
+                    const defectVertices = getHullDefectVertices(handContour, hullIndices);
+
+                    // Draw contours
                     cv.drawContours(frame, contours, -1, new cv.Scalar(255, 255, 255, 255), 2);
                     cv.drawContours(frame, [hull], -1, new cv.Scalar(0, 0, 255, 255), 2);
 
-                    const numDefects = defects.rows;
-                    console.log('Number of convexity defects detected:', numDefects);  // Log defects count
-
-                    // Draw blue lines on fingertips
-                    for (let i = 0; i < numDefects; i++) {
-                        const start = defects.data32S[i * 4];
-                        const end = defects.data32S[i * 4 + 1];
-                        const far = defects.data32S[i * 4 + 2];
-
-                        const startPoint = handContour.data32S.slice(start * 2, start * 2 + 2);
-                        const endPoint = handContour.data32S.slice(end * 2, end * 2 + 2);
-                        const farPoint = handContour.data32S.slice(far * 2, far * 2 + 2);
-
-                        // Draw blue lines
-                        cv.line(frame, new cv.Point(startPoint[0], startPoint[1]), new cv.Point(endPoint[0], endPoint[1]), new cv.Scalar(255, 0, 0, 255), 2);
-                        cv.circle(frame, new cv.Point(farPoint[0], farPoint[1]), 5, new cv.Scalar(0, 255, 0, 255), -1);
-                    }
-
-                    // Check for hand movement and adjust smoke opacity
-                    const leftMost = Math.min(...handContour.data32S.filter((_, i) => i % 2 === 0)); // x-coordinates
-                    const rightMost = Math.max(...handContour.data32S.filter((_, i) => i % 2 === 0)); // x-coordinates
-                    const centerX = (leftMost + rightMost) / 2;
-                    const frameCenterX = video.width / 2;
-
-                    if (centerX < frameCenterX - 30) {
-                        // Hand moved left
-                        smoke.style.opacity = Math.max(0, parseFloat(smoke.style.opacity) - 0.05);
-                    } else if (centerX > frameCenterX + 30) {
-                        // Hand moved right
-                        smoke.style.opacity = Math.min(1, parseFloat(smoke.style.opacity) + 0.05);
-                    }
+                    // Draw fingertip points
+                    defectVertices.forEach(({ pt, d1, d2 }) => {
+                        cv.circle(frame, new cv.Point(pt.x, pt.y), 5, new cv.Scalar(0, 255, 0, 255), -1);
+                        cv.line(frame, pt, d1, new cv.Scalar(255, 0, 0, 255), 2);
+                        cv.line(frame, pt, d2, new cv.Scalar(255, 0, 0, 255), 2);
+                    });
                 }
 
                 // Show the processed frame on the canvas
@@ -161,17 +133,14 @@
 
                 // Clean up
                 frame.delete();
-                gray.delete();
                 hsv.delete();
                 mask.delete();
                 contours.delete();
                 hierarchy.delete();
                 hull.delete();
-                defects.delete();
             }, 1000 / fps);
         }
 
-        // Start the camera when the page loads
         window.onload = () => {
             startCamera();
         };
