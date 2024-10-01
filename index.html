@@ -3,78 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hand Detection with handtrack.js</title>
+    <title>Handtrack.js Webcam Detection</title>
     <style>
-        body {
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #333;
-            color: white;
+        video, canvas {
+            display: block;
+            margin: 0 auto;
         }
         video {
-            width: 100%;
-            height: auto;
-            border: 3px solid #fff;
-            border-radius: 8px;
-            z-index: 0;
-        }
-        #output-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 2;
+            border: 2px solid black;
+            width: 500px;
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/handtrackjs@latest/dist/handtrack.min.js"></script>
+    <!-- Load the handtrack.js model -->
+    <script src="https://cdn.jsdelivr.net/npm/handtrackjs/dist/handtrack.min.js"></script>
 </head>
 <body>
-    <video id="camera-stream" autoplay playsinline></video>
-    <canvas id="output-canvas"></canvas>
+
+    <video id="video" autoplay></video>
+    <canvas id="canvas"></canvas>
 
     <script>
-        const video = document.getElementById('camera-stream');
-        const canvas = document.getElementById('output-canvas');
-        const ctx = canvas.getContext('2d');
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
 
-        async function startCamera() {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            video.srcObject = stream;
-            video.play();
+        // Set up webcam
+        handTrack.startVideo(video).then(status => {
+            if (status) {
+                navigator.getUserMedia({ video: {} }, stream => {
+                    video.srcObject = stream;
+                    runDetection();
+                }, err => console.log(err));
+            }
+        });
+
+        // Load the model and run detection in real-time
+        let model = null;
+        handTrack.load().then(lmodel => {
+            model = lmodel;
+        });
+
+        function runDetection() {
+            model.detect(video).then(predictions => {
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                canvas.width = video.width;
+                canvas.height = video.height;
+                model.renderPredictions(predictions, canvas, context, video);
+                requestAnimationFrame(runDetection);
+            });
         }
-
-        async function init() {
-            const model = await handTrack.load();
-            await startCamera();
-
-            // Set canvas size
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-
-            setInterval(async () => {
-                // Detect hands in the video frame
-                const predictions = await model.detect(video);
-
-                // Clear previous drawings
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                // Draw predictions
-                if (predictions.length > 0) {
-                    predictions.forEach(prediction => {
-                        const [x, y, width, height] = prediction.bbox;
-                        ctx.strokeStyle = 'green';
-                        ctx.lineWidth = 2;
-                        ctx.strokeRect(x, y, width, height);
-                        ctx.fillStyle = 'green';
-                        ctx.fillText(`${(prediction.score * 100).toFixed(1)}%`, x, y > 10 ? y - 5 : 10);
-                    });
-                }
-            }, 100);
-        }
-
-        window.onload = init;
     </script>
+
 </body>
 </html>
