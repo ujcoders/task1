@@ -1,80 +1,104 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Handtrack.js Responsive Webcam Detection</title>
-    <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f0f0f0;
-        }
-
-        video, canvas {
-            display: block;
-            max-width: 100%; /* Set the video to scale within the container */
-            max-height: 80vh; /* Limit the height to 80% of the viewport height */
-            width: auto; /* Adjust width dynamically */
-            height: auto; /* Adjust height dynamically */
-            border: 2px solid black;
-        }
-
-        /* Ensure the video takes up a large percentage of the screen but stays responsive */
-        video, canvas {
-            width: 80vw; /* Take up 80% of the viewport width */
-            height: auto; /* Maintain aspect ratio */
-        }
-
-        @media (max-width: 768px) {
-            video, canvas {
-                width: 95vw; /* Adjust for smaller screens */
-                height: auto;
-            }
-        }
-    </style>
-    <!-- Load the handtrack.js model -->
-    <script src="https://cdn.jsdelivr.net/npm/handtrackjs/dist/handtrack.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hand Detection with Image Effect</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body, html {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      background-color: #f4f4f4;
+      font-family: Arial, sans-serif;
+    }
+    header, footer {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    header {
+      height: 300px;
+    }
+    footer {
+      position: relative;
+      height: 300px;
+      overflow: hidden;
+    }
+    #video {
+      width: 300px;
+      height: 300px;
+      object-fit: cover;
+      border: 2px solid #333;
+    }
+    #image {
+      position: relative;
+      width: 300px;
+      height: 300px;
+      background: url('main.png') no-repeat center center;
+      background-size: contain;
+      transition: filter 0.5s ease;
+    }
+    .blur {
+      filter: blur(10px);
+    }
+    .no-blur {
+      filter: none;
+    }
+  </style>
 </head>
 <body>
-
+  <header>
     <video id="video" autoplay></video>
-    <canvas id="canvas"></canvas>
+  </header>
 
-    <script>
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const context = canvas.getContext('2d');
+  <footer>
+    <div id="image"></div>
+  </footer>
 
-        // Set up webcam
-        handTrack.startVideo(video).then(status => {
-            if (status) {
-                navigator.getUserMedia({ video: {} }, stream => {
-                    video.srcObject = stream;
-                    runDetection();
-                }, err => console.log(err));
-            }
-        });
+  <script src="https://cdn.jsdelivr.net/npm/handtrackjs/dist/handtrack.min.js"></script>
+  <script>
+    const video = document.getElementById('video');
+    const image = document.getElementById('image');
 
-        // Load the model and run detection in real-time
-        let model = null;
-        handTrack.load().then(lmodel => {
-            model = lmodel;
-        });
+    const modelParams = {
+      flipHorizontal: true,   // Flip the camera horizontally for a mirrored view
+      maxNumBoxes: 1,         // Maximum number of hands to detect
+      iouThreshold: 0.5,      // IOU threshold for object detection
+      scoreThreshold: 0.6     // Confidence threshold for detection
+    };
 
-        function runDetection() {
+    // Load the model for hand detection
+    handTrack.load(modelParams).then(model => {
+      handTrack.startVideo(video).then(status => {
+        if (status) {
+          console.log("Video started");
+
+          // Detect hands at intervals
+          setInterval(() => {
             model.detect(video).then(predictions => {
-                context.clearRect(0, 0, canvas.width, canvas.height);
-                canvas.width = video.videoWidth;  // Set canvas width to video size
-                canvas.height = video.videoHeight; // Set canvas height to video size
-                model.renderPredictions(predictions, canvas, context, video);
-                requestAnimationFrame(runDetection);
+              if (predictions.length > 0) {
+                // If a hand is detected, add blur effect to the image
+                image.classList.add('blur');
+              } else {
+                // No hand detected, remove blur effect
+                image.classList.remove('blur');
+              }
             });
+          }, 200);
+        } else {
+          console.log("Please enable video");
         }
-    </script>
-
+      });
+    });
+  </script>
 </body>
 </html>
