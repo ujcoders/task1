@@ -19,18 +19,17 @@
       background-color: #f4f4f4;
       font-family: Arial, sans-serif;
     }
-    header {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      width: 300px; /* Fixed width */
-      height: 300px; /* Fixed height */
-      margin-top: 20px; /* Space above */
+    .frame {
+      width: 300px; /* Fixed width for both frames */
+      height: 300px; /* Fixed height for both frames */
       position: relative; /* For absolute positioning of children */
+      margin: 20px 0; /* Space between the two frames */
+      overflow: hidden; /* Hide overflow for smoke effect */
+      background: #fff; /* White background for visibility */
     }
     video {
-      width: 300px; /* Fixed width */
-      height: 300px; /* Fixed height */
+      width: 100%; /* Full width of the frame */
+      height: 100%; /* Full height of the frame */
       object-fit: cover; /* Cover the entire area */
       position: absolute; /* Position video absolutely */
       top: 0;
@@ -41,39 +40,34 @@
       top: 0;
       left: 0;
     }
-    footer {
-      position: relative;
-      width: 300px; /* Match footer width to video */
-      height: 300px; /* Fixed height for the footer */
-      margin-top: 20px; /* Space between header and footer */
-      overflow: hidden; /* Hide overflow for smoke effect */
-      background: url('certificate-frame.png') no-repeat center center; /* Your certificate frame image */
-      background-size: contain; /* Adjust to fit within footer */
-    }
     #smokeImage {
       position: absolute;
       top: 0;
       left: 0;
-      width: 300px; /* Set smoke image to match video */
-      height: 300px; /* Set smoke image to match video */
+      width: 100%; /* Set smoke image to match frame */
+      height: 100%; /* Set smoke image to match frame */
       background: url('main.png') no-repeat center center; /* Your smoke image */
       background-size: cover; /* Ensure it covers the area */
       opacity: 1; /* Initial smoke fully visible */
       transition: opacity 0.5s ease; /* Smooth transition for opacity change */
     }
+    #certificateFrame {
+      background: url('certificate-frame.png') no-repeat center center; /* Your certificate frame image */
+      background-size: contain; /* Adjust to fit within footer */
+    }
   </style>
 </head>
 <body>
-  <header>
+  <div class="frame" id="videoFrame">
     <video id="video" autoplay playsinline></video>
     <canvas id="canvas" width="300" height="300"></canvas>
     <div id="smokeImage"></div> <!-- Smoke image initially visible -->
-  </header>
+  </div>
 
-  <footer>
-    <!-- Certificate frame has been set as the background of the footer -->
+  <div class="frame" id="certificateFrame">
+    <!-- Certificate frame background -->
     <div id="smokeOverlay"></div>
-  </footer>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/handtrackjs/dist/handtrack.min.js"></script>
   <script>
@@ -138,6 +132,10 @@
 
       // Apply the updated opacity to the smoke image
       smokeImage.style.opacity = opacityLevel;
+
+      // Also adjust opacity on certificate frame
+      const smokeOverlay = document.getElementById("smokeOverlay");
+      smokeOverlay.style.opacity = opacityLevel;
     }
 
     // Load the Handtrack.js model
