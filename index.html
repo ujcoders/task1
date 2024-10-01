@@ -85,11 +85,10 @@
       maxNumBoxes: 1,         // Maximum number of hands to detect
       iouThreshold: 0.5,      // IOU threshold for object detection
       scoreThreshold: 0.6,    // Confidence threshold for detection
-      // Only detect hands
       modelType: 'hand'       // Focus on hand detection only
     };
 
-    // Load the model for hand detection
+    // Ensure the video starts properly
     handTrack.load(modelParams).then(model => {
       handTrack.startVideo(video).then(status => {
         if (status) {
@@ -114,7 +113,11 @@
         } else {
           console.log("Please enable video");
         }
+      }).catch(error => {
+        console.error("Error starting video stream:", error);
       });
+    }).catch(error => {
+      console.error("Error loading Handtrack.js model:", error);
     });
   </script>
 </body>
