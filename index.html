@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hand Detection with Video Zoom Effect and Smoke</title>
+  <title>Hand Detection with Smoke Removal</title>
   <style>
     * {
       margin: 0;
@@ -41,13 +41,11 @@
       height: 300px;
       object-fit: cover;
       border: 2px solid #333;
-      transition: transform 0.5s ease;
     }
-    #video.grow {
-      transform: scale(1.2); /* Video grows by 20% */
-    }
-    #video.shrink {
-      transform: scale(0.8); /* Video shrinks by 20% */
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
     }
     #image {
       position: relative;
@@ -69,6 +67,7 @@
 <body>
   <header>
     <video id="video" autoplay playsinline></video>
+    <canvas id="canvas" width="300" height="300"></canvas>
   </header>
 
   <footer>
@@ -77,48 +76,64 @@
 
   <script src="https://cdn.jsdelivr.net/npm/handtrackjs/dist/handtrack.min.js"></script>
   <script>
-    const video = document.getElementById('video');
-    const image = document.getElementById('image');
+    const video = document.getElementById("video");
+    const handimg = document.getElementById("image");
+    const canvas = document.getElementById("canvas");
+    const context = canvas.getContext("2d");
+
+    let model = null;
+    let isVideo = false;
 
     const modelParams = {
-      flipHorizontal: true,   // Flip the camera horizontally for a mirrored view
-      maxNumBoxes: 1,         // Maximum number of hands to detect
-      iouThreshold: 0.5,      // IOU threshold for object detection
-      scoreThreshold: 0.6,    // Confidence threshold for detection
-      modelType: 'hand'       // Focus on hand detection only
+      flipHorizontal: true,   // Flip video horizontally
+      maxNumBoxes: 1,         // Detect only one hand at a time
+      iouThreshold: 0.5,      // Intersection over Union threshold for overlap
+      scoreThreshold: 0.6,    // Confidence threshold for predictions
     };
 
-    // Ensure the video starts properly
-    handTrack.load(modelParams).then(model => {
-      handTrack.startVideo(video).then(status => {
+    function startVideo() {
+      handTrack.startVideo(video).then(function (status) {
         if (status) {
           console.log("Video started");
-
-          // Detect hands at intervals
-          setInterval(() => {
-            model.detect(video).then(predictions => {
-              if (predictions.length > 0) {
-                // If a hand is detected, make the video grow and remove the smoke
-                video.classList.add('grow');
-                video.classList.remove('shrink');
-                image.classList.remove('smoke');
-              } else {
-                // No hand detected, make the video shrink and keep the smoke
-                video.classList.remove('grow');
-                video.classList.add('shrink');
-                image.classList.add('smoke');
-              }
-            });
-          }, 200);
+          isVideo = true;
+          runDetection();  // Start hand detection
         } else {
           console.log("Please enable video");
         }
-      }).catch(error => {
-        console.error("Error starting video stream:", error);
       });
-    }).catch(error => {
-      console.error("Error loading Handtrack.js model:", error);
+    }
+
+    function runDetection() {
+      model.detect(video).then(predictions => {
+        console.log("Predictions: ", predictions);
+        model.renderPredictions(predictions, canvas, context, video);
+
+        // If a hand is detected, remove the smoke effect
+        if (predictions.length > 0) {
+          handimg.classList.remove("smoke");
+          handimg.classList.add("no-smoke");
+        } else {
+          // If no hand is detected, keep the smoke effect
+          handimg.classList.add("smoke");
+          handimg.classList.remove("no-smoke");
+        }
+
+        // Continue detection loop
+        if (isVideo) {
+          requestAnimationFrame(runDetection);
+        }
+      });
+    }
+
+    // Load the Handtrack.js model
+    handTrack.load(modelParams).then(lmodel => {
+      model = lmodel;
+      console.log("Model loaded:", model);
+      startVideo();
+    }).catch(err => {
+      console.error("Error loading model:", err);
     });
+
   </script>
 </body>
 </html>
