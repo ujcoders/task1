@@ -15,30 +15,28 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: flex-start; /* Start from the top */
+      justify-content: flex-start;
       background-color: #f4f4f4;
       font-family: Arial, sans-serif;
     }
     header {
-      height: 300px;
-      width: 300px; /* Set header width to 300px */
-      position: relative;
       display: flex;
       justify-content: center;
       align-items: center;
-      overflow: hidden; /* Ensure content stays within the frame */
-      border: 2px solid #333; /* Optional: Add border for visual clarity */
-      margin-top: 20px; /* Space between header and footer */
+      width: 300px; /* Fixed width */
+      height: 300px; /* Fixed height */
+      margin-top: 20px; /* Space above */
+      position: relative; /* For absolute positioning of children */
     }
-    #video {
-      position: absolute; /* Position video absolutely */
-      top: 0; /* Align top */
-      left: 0; /* Align left */
-      width: 300px; /* Set fixed width */
-      height: 300px; /* Set fixed height */
+    video {
+      width: 300px; /* Fixed width */
+      height: 300px; /* Fixed height */
       object-fit: cover; /* Cover the entire area */
+      position: absolute; /* Position video absolutely */
+      top: 0;
+      left: 0;
     }
-    #canvas {
+    canvas {
       position: absolute;
       top: 0;
       left: 0;
@@ -46,9 +44,11 @@
     footer {
       position: relative;
       width: 300px; /* Match footer width to video */
-      height: 300px;
-      overflow: hidden;
+      height: 300px; /* Fixed height for the footer */
       margin-top: 20px; /* Space between header and footer */
+      overflow: hidden; /* Hide overflow for smoke effect */
+      background: url('certificate-frame.png') no-repeat center center; /* Your certificate frame image */
+      background-size: contain; /* Adjust to fit within footer */
     }
     #smokeImage {
       position: absolute;
@@ -56,21 +56,10 @@
       left: 0;
       width: 300px; /* Set smoke image to match video */
       height: 300px; /* Set smoke image to match video */
-      background: url('main.png') no-repeat center center;
+      background: url('main.png') no-repeat center center; /* Your smoke image */
       background-size: cover; /* Ensure it covers the area */
-      transition: opacity 0.5s ease; /* Smooth transition for opacity change */
       opacity: 1; /* Initial smoke fully visible */
-    }
-    #certificateFrame {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: url('certificate-frame.png') no-repeat center center; /* Your certificate frame image */
-      background-size: contain; /* Adjust to fit within footer */
-      opacity: 0; /* Start with no visibility */
-      transition: opacity 0.5s ease; /* Smooth transition for opacity */
+      transition: opacity 0.5s ease; /* Smooth transition for opacity change */
     }
   </style>
 </head>
@@ -82,26 +71,25 @@
   </header>
 
   <footer>
-    <div id="certificateFrame"></div> <!-- Certificate frame initially hidden -->
+    <!-- Certificate frame has been set as the background of the footer -->
+    <div id="smokeOverlay"></div>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/handtrackjs/dist/handtrack.min.js"></script>
   <script>
     const video = document.getElementById("video");
     const smokeImage = document.getElementById("smokeImage");
-    const certificateFrame = document.getElementById("certificateFrame");
     const canvas = document.getElementById("canvas");
     const context = canvas.getContext("2d");
 
     let model = null;
     let isVideo = false;
-    let opacityLevel = 1;  // Initial full opacity (smoke fully visible)
 
     const modelParams = {
-      flipHorizontal: true,   // Flip video horizontally
-      maxNumBoxes: 1,         // Detect only one hand at a time
-      iouThreshold: 0.5,      // Intersection over Union threshold for overlap
-      scoreThreshold: 0.6,    // Confidence threshold for predictions
+      flipHorizontal: true, // Flip video horizontally
+      maxNumBoxes: 1,       // Detect only one hand at a time
+      iouThreshold: 0.5,    // IOU threshold for overlap
+      scoreThreshold: 0.6,  // Confidence threshold for predictions
     };
 
     function startVideo() {
@@ -109,7 +97,7 @@
         if (status) {
           console.log("Video started");
           isVideo = true;
-          runDetection();  // Start hand detection
+          runDetection(); // Start hand detection
         } else {
           console.log("Please enable video");
         }
@@ -138,26 +126,18 @@
     function handleHandMovement(handPosition) {
       const [x, y, width, height] = handPosition;
 
-      // Calculate distance of the hand from the center of the video frame
+      // Calculate the position of the hand in relation to the center of the video
       const centerX = 150; // Center of the 300px video width
-      const centerY = 150; // Center of the 300px video height
       const handCenterX = x + width / 2;
-      const handCenterY = y + height / 2;
 
-      const distance = Math.sqrt(Math.pow(handCenterX - centerX, 2) + Math.pow(handCenterY - centerY, 2));
+      const distance = Math.abs(handCenterX - centerX); // Get distance from center
 
-      // Adjust opacity based on distance (closer hand means less opacity)
-      opacityLevel = Math.max(0, Math.min(1, 1 - (distance / 200))); // Inverted: closer hand fades smoke
+      // Adjust opacity based on distance
+      const maxDistance = 100; // Maximum distance for full smoke removal
+      const opacityLevel = Math.max(0, Math.min(1, 1 - (distance / maxDistance))); // Inverted
 
       // Apply the updated opacity to the smoke image
       smokeImage.style.opacity = opacityLevel;
-
-      // If the hand is close enough, reveal the certificate frame
-      if (opacityLevel < 0.5) { // Adjust threshold as needed
-        certificateFrame.style.opacity = 1; // Show the certificate frame
-      } else {
-        certificateFrame.style.opacity = 0; // Hide the certificate frame
-      }
     }
 
     // Load the Handtrack.js model
