@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hand Detection with Video Zoom Effect</title>
+  <title>Hand Detection with Video Zoom Effect and Smoke</title>
   <style>
     * {
       margin: 0;
@@ -57,21 +57,22 @@
       background-size: contain;
       transition: filter 0.5s ease;
     }
-    .blur {
-      filter: blur(10px);
+    /* Smoke effect: initial blur */
+    .smoke {
+      filter: blur(15px);
     }
-    .no-blur {
+    .no-smoke {
       filter: none;
     }
   </style>
 </head>
 <body>
   <header>
-    <video id="video" autoplay></video>
+    <video id="video" autoplay playsinline></video>
   </header>
 
   <footer>
-    <div id="image"></div>
+    <div id="image" class="smoke"></div> <!-- Initial smoke effect -->
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/handtrackjs/dist/handtrack.min.js"></script>
@@ -83,7 +84,9 @@
       flipHorizontal: true,   // Flip the camera horizontally for a mirrored view
       maxNumBoxes: 1,         // Maximum number of hands to detect
       iouThreshold: 0.5,      // IOU threshold for object detection
-      scoreThreshold: 0.6     // Confidence threshold for detection
+      scoreThreshold: 0.6,    // Confidence threshold for detection
+      // Only detect hands
+      modelType: 'hand'       // Focus on hand detection only
     };
 
     // Load the model for hand detection
@@ -96,15 +99,15 @@
           setInterval(() => {
             model.detect(video).then(predictions => {
               if (predictions.length > 0) {
-                // If a hand is detected, make the video grow and blur the image
+                // If a hand is detected, make the video grow and remove the smoke
                 video.classList.add('grow');
                 video.classList.remove('shrink');
-                image.classList.add('blur');
+                image.classList.remove('smoke');
               } else {
-                // No hand detected, make the video shrink and remove blur from the image
+                // No hand detected, make the video shrink and keep the smoke
                 video.classList.remove('grow');
                 video.classList.add('shrink');
-                image.classList.remove('blur');
+                image.classList.add('smoke');
               }
             });
           }, 200);
