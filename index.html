@@ -3,21 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Handtrack.js Webcam Detection - Large Video Frame</title>
+    <title>Handtrack.js Responsive Webcam Detection</title>
     <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+
         video, canvas {
             display: block;
-            margin: 0 auto;
-        }
-        /* Make the video and canvas larger */
-        video {
+            max-width: 100%; /* Set the video to scale within the container */
+            max-height: 80vh; /* Limit the height to 80% of the viewport height */
+            width: auto; /* Adjust width dynamically */
+            height: auto; /* Adjust height dynamically */
             border: 2px solid black;
-            width: 800px; /* Set the desired width */
-            height: 600px; /* Set the desired height */
         }
-        canvas {
-            width: 800px;  /* Match the video width */
-            height: 600px; /* Match the video height */
+
+        /* Ensure the video takes up a large percentage of the screen but stays responsive */
+        video, canvas {
+            width: 80vw; /* Take up 80% of the viewport width */
+            height: auto; /* Maintain aspect ratio */
+        }
+
+        @media (max-width: 768px) {
+            video, canvas {
+                width: 95vw; /* Adjust for smaller screens */
+                height: auto;
+            }
         }
     </style>
     <!-- Load the handtrack.js model -->
