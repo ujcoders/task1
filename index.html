@@ -3,15 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Handtrack.js Webcam Detection</title>
+    <title>Handtrack.js Webcam Detection - Large Video Frame</title>
     <style>
         video, canvas {
             display: block;
             margin: 0 auto;
         }
+        /* Make the video and canvas larger */
         video {
             border: 2px solid black;
-            width: 500px;
+            width: 800px; /* Set the desired width */
+            height: 600px; /* Set the desired height */
+        }
+        canvas {
+            width: 800px;  /* Match the video width */
+            height: 600px; /* Match the video height */
         }
     </style>
     <!-- Load the handtrack.js model -->
@@ -46,8 +52,8 @@
         function runDetection() {
             model.detect(video).then(predictions => {
                 context.clearRect(0, 0, canvas.width, canvas.height);
-                canvas.width = video.width;
-                canvas.height = video.height;
+                canvas.width = video.videoWidth;  // Set canvas width to video size
+                canvas.height = video.videoHeight; // Set canvas height to video size
                 model.renderPredictions(predictions, canvas, context, video);
                 requestAnimationFrame(runDetection);
             });
