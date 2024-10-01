@@ -96,14 +96,15 @@
                 cv.cvtColor(frame, gray, cv.COLOR_RGBA2GRAY);
                 cv.GaussianBlur(gray, gray, new cv.Size(5, 5), 0);
 
-                // Detect hand using color segmentation (you can adjust the range)
+                // Detect hand using color segmentation (adjust the range as needed)
                 cv.cvtColor(frame, hsv, cv.COLOR_RGBA2HSV);
-                const lowerBound = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [0, 20, 70, 0]);  // Adjusted Lower HSV bound
-                const upperBound = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [20, 255, 255, 0]); // Adjusted Upper HSV bound
+                const lowerBound = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [0, 48, 80, 0]);  // Lower HSV bound for skin color
+                const upperBound = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [20, 255, 255, 0]); // Upper HSV bound for skin color
                 cv.inRange(hsv, lowerBound, upperBound, mask);
 
                 // Find contours
                 cv.findContours(mask, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+                console.log('Number of contours detected:', contours.size());
 
                 if (contours.size() > 0) {
                     const handContour = contours.get(0);
@@ -112,8 +113,14 @@
                     const defects = new cv.Mat();
                     cv.convexityDefects(handContour, hull, defects);
 
-                    // Draw blue lines on fingertips
+                    // Draw contours and hull
+                    cv.drawContours(frame, contours, -1, new cv.Scalar(255, 255, 255, 255), 2); // Draw all contours
+                    cv.drawContours(frame, [hull], -1, new cv.Scalar(0, 0, 255, 255), 2); // Draw convex hull
+
                     const numDefects = defects.rows;
+                    console.log('Number of convexity defects detected:', numDefects);
+                    
+                    // Draw blue lines on fingertips
                     let leftMost = Number.MAX_VALUE;
                     let rightMost = Number.MIN_VALUE;
 
