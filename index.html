@@ -3,9 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hand Detection with OpenCV</title>
+    <title>Hand Detection with Smoke Removal</title>
     <script src="https://docs.opencv.org/4.x/opencv.js" async></script>
     <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #333;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
         #camera-stream {
             display: none; /* Hide the video stream element */
         }
@@ -13,6 +24,7 @@
             position: absolute;
             top: 0;
             left: 0;
+            z-index: 2;
         }
         #smoke {
             position: absolute;
@@ -22,13 +34,29 @@
             background-size: cover;
             opacity: 0.8; /* Initial opacity of smoke */
             transition: opacity 0.5s;
+            z-index: 1;
+        }
+        #video-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px; /* Set a max width for the video */
+            overflow: hidden;
+        }
+        video {
+            width: 100%;
+            height: auto;
+            border: 3px solid #fff; /* Attractive border */
+            border-radius: 8px; /* Rounded corners */
+            z-index: 0;
         }
     </style>
 </head>
 <body>
-    <video id="camera-stream" autoplay></video>
-    <canvas id="output-canvas"></canvas>
-    <div id="smoke"></div>
+    <div id="video-container">
+        <video id="camera-stream" autoplay playsinline></video>
+        <canvas id="output-canvas"></canvas>
+        <div id="smoke"></div>
+    </div>
 
     <script>
         // Start the camera and detect hand movement
@@ -48,26 +76,34 @@
         function detectHandMovement(video) {
             const canvas = document.getElementById('output-canvas');
             const ctx = canvas.getContext('2d');
-            const cap = new cv.VideoCapture(video);
             const smoke = document.getElementById('smoke');
+
+            // Set canvas dimensions
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
 
             // Initialize frame capturing and processing
             const fps = 10;
             setInterval(() => {
                 const frame = new cv.Mat(video.height, video.width, cv.CV_8UC4);
                 const gray = new cv.Mat();
+                const hsv = new cv.Mat();
+                const mask = new cv.Mat();
+                const contours = new cv.MatVector();
+                const hierarchy = new cv.Mat();
+                const cap = new cv.VideoCapture(video);
                 cap.read(frame);
                 cv.cvtColor(frame, gray, cv.COLOR_RGBA2GRAY);
                 cv.GaussianBlur(gray, gray, new cv.Size(5, 5), 0);
 
-                // Apply adaptive thresholding to detect the hand
-                const thresh = new cv.Mat();
-                cv.adaptiveThreshold(gray, thresh, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 11, 2);
+                // Detect hand using color segmentation (you can adjust the range)
+                cv.cvtColor(frame, hsv, cv.COLOR_RGBA2HSV);
+                const lowerBound = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [0, 48, 80, 0]);  // Lower HSV bound for skin color
+                const upperBound = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [20, 255, 255, 0]); // Upper HSV bound for skin color
+                cv.inRange(hsv, lowerBound, upperBound, mask);
 
                 // Find contours
-                const contours = new cv.MatVector();
-                const hierarchy = new cv.Mat();
-                cv.findContours(thresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+                cv.findContours(mask, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
                 if (contours.size() > 0) {
                     const handContour = contours.get(0);
@@ -76,7 +112,7 @@
                     const defects = new cv.Mat();
                     cv.convexityDefects(handContour, hull, defects);
 
-                    // Draw blue lines on fingertips and check movement direction
+                    // Draw blue lines on fingertips
                     const numDefects = defects.rows;
                     let leftMost = Number.MAX_VALUE;
                     let rightMost = Number.MIN_VALUE;
@@ -118,7 +154,8 @@
                 // Clean up
                 frame.delete();
                 gray.delete();
-                thresh.delete();
+                hsv.delete();
+                mask.delete();
                 contours.delete();
                 hierarchy.delete();
                 hull.delete();
