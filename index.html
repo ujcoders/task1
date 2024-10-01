@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scratch Card Effect with Hand Detection</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #000;
+    }
+
+    #image-container {
+      position: relative;
+    }
+
+    #smoke {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.8);
+      animation: fadeSmoke 0.5s ease-in-out;
+    }
+
+    #image {
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+    }
+
+    @keyframes fadeSmoke {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+
+    #camera-stream {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="image-container">
+    <img id="image" src="main.png" alt="Background Image">
+    <div id="smoke"></div>
+    <video id="camera-stream" autoplay></video>
+  </div>
+
+  <script src="https://docs.opencv.org/4.x/opencv.js" async></script>
+  <script>
+    // Start the camera and hand detection after 5 seconds
+    setTimeout(() => {
+      startCamera();
+    }, 5000);
+
+    function startCamera() {
+      const video = document.getElementById('camera-stream');
+      const smoke = document.getElementById('smoke');
+
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+          video.srcObject = stream;
+          video.play();
+          video.style.display = 'block';
+          detectHandMovement(video, smoke);
+        })
+        .catch(error => console.error('Camera not accessible:', error));
+    }
+
+    function detectHandMovement(video, smoke) {
+      const cap = new cv.VideoCapture(video);
+
+      // Hand detection logic using OpenCV.js will go here
+      const fps = 10;
+      setInterval(() => {
+        const frame = new cv.Mat(video.height, video.width, cv.CV_8UC4);
+        cap.read(frame);
+
+        // Convert frame to grayscale
+        cv.cvtColor(frame, frame, cv.COLOR_RGBA2GRAY);
+
+        // Thresholding to extract hand
+        cv.threshold(frame, frame, 100, 255, cv.THRESH_BINARY);
+
+        // Find contours
+        const contours = new cv.MatVector();
+        const hierarchy = new cv.Mat();
+        cv.findContours(frame, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+        if (contours.size() > 0) {
+          const handContour = contours.get(0);
+          
+          // Convex hull calculation
+          const hull = new cv.Mat();
+          cv.convexHull(handContour, hull, false, true);
+
+          // Convexity defects (used for detecting fingers)
+          const defects = new cv.Mat();
+          cv.convexityDefects(handContour, hull, defects);
+
+          // Simple left or right hand movement detection logic (for demo purposes)
+          if (defects.size().height > 0) {
+            const startPoint = defects.intPtr(0, 0)[0];
+            const endPoint = defects.intPtr(0, 1)[0];
+
+            if (startPoint > endPoint) {
+              // Movement to the left
+              smoke.style.opacity = parseFloat(smoke.style.opacity) - 0.05;
+            } else {
+              // Movement to the right
+              smoke.style.opacity = parseFloat(smoke.style.opacity) - 0.05;
+            }
+          }
+        }
+
+        frame.delete();
+        contours.delete();
+        hierarchy.delete();
+      }, 1000 / fps);
+    }
+  </script>
+
+</body>
+</html>
