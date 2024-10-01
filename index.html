@@ -15,7 +15,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start; /* Start from the top */
       background-color: #f4f4f4;
       font-family: Arial, sans-serif;
     }
@@ -28,6 +28,7 @@
       align-items: center;
       overflow: hidden; /* Ensure content stays within the frame */
       border: 2px solid #333; /* Optional: Add border for visual clarity */
+      margin-top: 20px; /* Space between header and footer */
     }
     #video {
       position: absolute; /* Position video absolutely */
@@ -44,9 +45,10 @@
     }
     footer {
       position: relative;
+      width: 300px; /* Match footer width to video */
       height: 300px;
-      width: 100%;
       overflow: hidden;
+      margin-top: 20px; /* Space between header and footer */
     }
     #smokeImage {
       position: absolute;
@@ -59,6 +61,17 @@
       transition: opacity 0.5s ease; /* Smooth transition for opacity change */
       opacity: 1; /* Initial smoke fully visible */
     }
+    #certificateFrame {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: url('certificate-frame.png') no-repeat center center; /* Your certificate frame image */
+      background-size: contain; /* Adjust to fit within footer */
+      opacity: 0; /* Start with no visibility */
+      transition: opacity 0.5s ease; /* Smooth transition for opacity */
+    }
   </style>
 </head>
 <body>
@@ -69,13 +82,14 @@
   </header>
 
   <footer>
-    <div id="image"></div> <!-- Optional additional image -->
+    <div id="certificateFrame"></div> <!-- Certificate frame initially hidden -->
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/handtrackjs/dist/handtrack.min.js"></script>
   <script>
     const video = document.getElementById("video");
     const smokeImage = document.getElementById("smokeImage");
+    const certificateFrame = document.getElementById("certificateFrame");
     const canvas = document.getElementById("canvas");
     const context = canvas.getContext("2d");
 
@@ -137,6 +151,13 @@
 
       // Apply the updated opacity to the smoke image
       smokeImage.style.opacity = opacityLevel;
+
+      // If the hand is close enough, reveal the certificate frame
+      if (opacityLevel < 0.5) { // Adjust threshold as needed
+        certificateFrame.style.opacity = 1; // Show the certificate frame
+      } else {
+        certificateFrame.style.opacity = 0; // Hide the certificate frame
+      }
     }
 
     // Load the Handtrack.js model
