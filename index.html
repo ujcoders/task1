@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hand Detection with Image Effect</title>
+  <title>Hand Detection with Video Zoom Effect</title>
   <style>
     * {
       margin: 0;
@@ -27,6 +27,9 @@
     }
     header {
       height: 300px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
     footer {
       position: relative;
@@ -38,6 +41,13 @@
       height: 300px;
       object-fit: cover;
       border: 2px solid #333;
+      transition: transform 0.5s ease;
+    }
+    #video.grow {
+      transform: scale(1.2); /* Video grows by 20% */
+    }
+    #video.shrink {
+      transform: scale(0.8); /* Video shrinks by 20% */
     }
     #image {
       position: relative;
@@ -86,10 +96,14 @@
           setInterval(() => {
             model.detect(video).then(predictions => {
               if (predictions.length > 0) {
-                // If a hand is detected, add blur effect to the image
+                // If a hand is detected, make the video grow and blur the image
+                video.classList.add('grow');
+                video.classList.remove('shrink');
                 image.classList.add('blur');
               } else {
-                // No hand detected, remove blur effect
+                // No hand detected, make the video shrink and remove blur from the image
+                video.classList.remove('grow');
+                video.classList.add('shrink');
                 image.classList.remove('blur');
               }
             });
