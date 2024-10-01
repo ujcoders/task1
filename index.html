@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hand Detection with Smoke Removal</title>
+  <title>Hand Movement Smoke Removal</title>
   <style>
     * {
       margin: 0;
@@ -53,14 +53,8 @@
       height: 300px;
       background: url('main.png') no-repeat center center;
       background-size: contain;
-      transition: filter 0.5s ease;
-    }
-    /* Smoke effect: initial blur */
-    .smoke {
-      filter: blur(15px);
-    }
-    .no-smoke {
-      filter: none;
+      transition: opacity 0.5s ease;
+      opacity: 1; /* Initial smoke fully visible */
     }
   </style>
 </head>
@@ -71,18 +65,19 @@
   </header>
 
   <footer>
-    <div id="image" class="smoke"></div> <!-- Initial smoke effect -->
+    <div id="image"></div> <!-- Smoke covered image -->
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/handtrackjs/dist/handtrack.min.js"></script>
   <script>
     const video = document.getElementById("video");
-    const handimg = document.getElementById("image");
+    const smokeImage = document.getElementById("image");
     const canvas = document.getElementById("canvas");
     const context = canvas.getContext("2d");
 
     let model = null;
     let isVideo = false;
+    let opacityLevel = 1;  // Initial full opacity (smoke fully visible)
 
     const modelParams = {
       flipHorizontal: true,   // Flip video horizontally
@@ -108,14 +103,10 @@
         console.log("Predictions: ", predictions);
         model.renderPredictions(predictions, canvas, context, video);
 
-        // If a hand is detected, remove the smoke effect
         if (predictions.length > 0) {
-          handimg.classList.remove("smoke");
-          handimg.classList.add("no-smoke");
-        } else {
-          // If no hand is detected, keep the smoke effect
-          handimg.classList.add("smoke");
-          handimg.classList.remove("no-smoke");
+          // Detect hand movement and remove smoke gradually
+          const handPosition = predictions[0].bbox; // Get the hand's bounding box
+          handleHandMovement(handPosition);
         }
 
         // Continue detection loop
@@ -123,6 +114,25 @@
           requestAnimationFrame(runDetection);
         }
       });
+    }
+
+    // Function to handle the removal of smoke based on hand movement
+    function handleHandMovement(handPosition) {
+      const [x, y, width, height] = handPosition;
+
+      // Calculate distance of the hand from the center of the video frame
+      const centerX = 150; // Center of the 300px video width
+      const centerY = 150; // Center of the 300px video height
+      const handCenterX = x + width / 2;
+      const handCenterY = y + height / 2;
+
+      const distance = Math.sqrt(Math.pow(handCenterX - centerX, 2) + Math.pow(handCenterY - centerY, 2));
+
+      // Adjust opacity based on distance (closer hand means less opacity)
+      opacityLevel = Math.max(0, Math.min(1, distance / 200)); // Distance of 200 means full smoke
+
+      // Apply the updated opacity to the smoke image
+      smokeImage.style.opacity = opacityLevel;
     }
 
     // Load the Handtrack.js model
