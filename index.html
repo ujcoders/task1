@@ -98,8 +98,8 @@
 
                 // Detect hand using color segmentation (you can adjust the range)
                 cv.cvtColor(frame, hsv, cv.COLOR_RGBA2HSV);
-                const lowerBound = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [0, 48, 80, 0]);  // Lower HSV bound for skin color
-                const upperBound = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [20, 255, 255, 0]); // Upper HSV bound for skin color
+                const lowerBound = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [0, 20, 70, 0]);  // Adjusted Lower HSV bound
+                const upperBound = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [20, 255, 255, 0]); // Adjusted Upper HSV bound
                 cv.inRange(hsv, lowerBound, upperBound, mask);
 
                 // Find contours
