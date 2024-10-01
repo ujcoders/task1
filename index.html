@@ -93,18 +93,24 @@
                 const hierarchy = new cv.Mat();
                 const cap = new cv.VideoCapture(video);
                 cap.read(frame);
+
+                // Convert to grayscale and blur
                 cv.cvtColor(frame, gray, cv.COLOR_RGBA2GRAY);
                 cv.GaussianBlur(gray, gray, new cv.Size(5, 5), 0);
 
-                // Detect hand using color segmentation (adjust the range as needed)
+                // Convert to HSV
                 cv.cvtColor(frame, hsv, cv.COLOR_RGBA2HSV);
-                const lowerBound = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [0, 48, 80, 0]);  // Lower HSV bound for skin color
-                const upperBound = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [20, 255, 255, 0]); // Upper HSV bound for skin color
+
+                // Adjust lower and upper bounds for skin color detection
+                const lowerBound = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [0, 40, 30, 0]);  // Adjusted lower bound
+                const upperBound = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [20, 255, 255, 0]); // Adjusted upper bound
+                
+                // Create a mask
                 cv.inRange(hsv, lowerBound, upperBound, mask);
 
                 // Find contours
                 cv.findContours(mask, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-                console.log('Number of contours detected:', contours.size());
+                console.log('Number of contours detected:', contours.size());  // Check number of contours
 
                 if (contours.size() > 0) {
                     const handContour = contours.get(0);
@@ -114,16 +120,13 @@
                     cv.convexityDefects(handContour, hull, defects);
 
                     // Draw contours and hull
-                    cv.drawContours(frame, contours, -1, new cv.Scalar(255, 255, 255, 255), 2); // Draw all contours
-                    cv.drawContours(frame, [hull], -1, new cv.Scalar(0, 0, 255, 255), 2); // Draw convex hull
+                    cv.drawContours(frame, contours, -1, new cv.Scalar(255, 255, 255, 255), 2);
+                    cv.drawContours(frame, [hull], -1, new cv.Scalar(0, 0, 255, 255), 2);
 
                     const numDefects = defects.rows;
-                    console.log('Number of convexity defects detected:', numDefects);
-                    
-                    // Draw blue lines on fingertips
-                    let leftMost = Number.MAX_VALUE;
-                    let rightMost = Number.MIN_VALUE;
+                    console.log('Number of convexity defects detected:', numDefects);  // Log defects count
 
+                    // Draw blue lines on fingertips
                     for (let i = 0; i < numDefects; i++) {
                         const start = defects.data32S[i * 4];
                         const end = defects.data32S[i * 4 + 1];
@@ -136,13 +139,11 @@
                         // Draw blue lines
                         cv.line(frame, new cv.Point(startPoint[0], startPoint[1]), new cv.Point(endPoint[0], endPoint[1]), new cv.Scalar(255, 0, 0, 255), 2);
                         cv.circle(frame, new cv.Point(farPoint[0], farPoint[1]), 5, new cv.Scalar(0, 255, 0, 255), -1);
-
-                        // Update left and right points
-                        leftMost = Math.min(leftMost, farPoint[0]);
-                        rightMost = Math.max(rightMost, farPoint[0]);
                     }
 
                     // Check for hand movement and adjust smoke opacity
+                    const leftMost = Math.min(...handContour.data32S.filter((_, i) => i % 2 === 0)); // x-coordinates
+                    const rightMost = Math.max(...handContour.data32S.filter((_, i) => i % 2 === 0)); // x-coordinates
                     const centerX = (leftMost + rightMost) / 2;
                     const frameCenterX = video.width / 2;
 
@@ -151,7 +152,7 @@
                         smoke.style.opacity = Math.max(0, parseFloat(smoke.style.opacity) - 0.05);
                     } else if (centerX > frameCenterX + 30) {
                         // Hand moved right
-                        smoke.style.opacity = Math.max(0, parseFloat(smoke.style.opacity) - 0.05);
+                        smoke.style.opacity = Math.min(1, parseFloat(smoke.style.opacity) + 0.05);
                     }
                 }
 
